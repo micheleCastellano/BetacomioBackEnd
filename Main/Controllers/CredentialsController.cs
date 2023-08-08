@@ -14,6 +14,7 @@ using Main.Structures;
 using Microsoft.AspNetCore.Http.HttpResults;
 using UtilityLibrary;
 using System.ComponentModel.DataAnnotations;
+using Main.EmailSender;
 
 namespace Main.Controllers
 {
@@ -22,29 +23,22 @@ namespace Main.Controllers
     [ApiController]
     public class CredentialsController : ControllerBase
     {
-        private readonly BetacomioContext _context;
+        private readonly BetacomioContext _contextBet;
 
         private readonly ICredentialRepository _credentialRepository;
+        private readonly IEmailSender _emailSender;
 
-        public CredentialsController(BetacomioContext context, ICredentialRepository credentialRepository)
+        public CredentialsController(BetacomioContext contextBet, ICredentialRepository credentialRepository, IEmailSender emailSender)
         {
-            _context = context;
+            _contextBet = contextBet;
             _credentialRepository = credentialRepository;
+            _emailSender = emailSender;
         }
 
         // POST: api/Credentials/Login
         [HttpPost]
         public async Task<ActionResult<Credential>> Login([FromBody] LoginCredential loginCredential)
         {
-            
-            if (_context.Credentials == null)
-            {
-                return NotFound();
-            }
-            if (!await _context.Database.CanConnectAsync())
-            {
-                return NotFound();
-            }
 
             if (string.IsNullOrEmpty(loginCredential.EmailAddress))
             {
@@ -55,47 +49,59 @@ namespace Main.Controllers
             {
                 return BadRequest();
             }
+
             if (!MyValidator.IsEmailAddress(loginCredential.EmailAddress))
             {
                 return BadRequest();
             }
 
-            try
+            //Search if credential exists in Betacomio Database
+            var credential = _credentialRepository.CheckLoginBetacomio(loginCredential.EmailAddress, loginCredential.Password);
+
+            if (credential != null)
             {
-                (bool result, Credential credential) = _credentialRepository.CheckLogin(loginCredential.EmailAddress, loginCredential.Password);
-                if (!result)
-                {
-                    return NotFound();
-                }
                 return Ok(credential);
             }
-            catch (Exception)
+
+
+            //Search if credential exists in Adventure Database
+            var credential2= await _credentialRepository.CheckLoginAdventure(loginCredential.EmailAddress);
+
+            if (credential2 != null)
             {
-                return NotFound();
+                return Accepted(credential2);
             }
+
+            //Credential doesn't exist neither in Betacomio nor in Adventure
+            return NotFound();
+
         }
 
+        [HttpPost]
+        public async Task<ActionResult<Credential>> Addcredential([FromBody] LoginCredential loginCredential)
+        {
 
+            return await _credentialRepository.AddCredentialAsync(loginCredential.EmailAddress, loginCredential.Password);
 
-
-
+        }
 
         // GET: api/Credentials/GetCredentials
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Credential>>> GetCredentials()
         {
-            if (_context.Credentials == null)
+            if (_contextBet.Credentials == null)
             {
                 return NotFound();
             }
-            if (!await _context.Database.CanConnectAsync())
+            if (!await _contextBet.Database.CanConnectAsync())
             {
                 return NotFound();
             }
             try
             {
-                return await _context.Credentials.ToListAsync();
-            }catch(Exception)
+                return await _contextBet.Credentials.ToListAsync();
+            }
+            catch (Exception)
             {
                 return NotFound();
             }
@@ -105,16 +111,16 @@ namespace Main.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Credential>> GetCredentialById(int id)
         {
-            if (_context.Credentials == null)
+            if (_contextBet.Credentials == null)
             {
                 return NotFound();
             }
-            if (!await _context.Database.CanConnectAsync())
+            if (!await _contextBet.Database.CanConnectAsync())
             {
                 return NotFound(new ResponseToFrontEnd(500, false, "database not available"));
             }
 
-            var credential = await _context.Credentials.FindAsync(id);
+            var credential = await _contextBet.Credentials.FindAsync(id);
 
             if (credential == null)
             {
@@ -132,16 +138,16 @@ namespace Main.Controllers
             {
                 return BadRequest();
             }
-            if (!await _context.Database.CanConnectAsync())
+            if (!await _contextBet.Database.CanConnectAsync())
             {
                 return NotFound();
             }
 
-            _context.Entry(credential).State = EntityState.Modified;
+            _contextBet.Entry(credential).State = EntityState.Modified;
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _contextBet.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -162,25 +168,25 @@ namespace Main.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCredential(int id)
         {
-            if (_context.Credentials == null)
+            if (_contextBet.Credentials == null)
             {
                 return NotFound();
             }
-            var credential = await _context.Credentials.FindAsync(id);
+            var credential = await _contextBet.Credentials.FindAsync(id);
             if (credential == null)
             {
                 return NotFound();
             }
 
-            _context.Credentials.Remove(credential);
-            await _context.SaveChangesAsync();
+            _contextBet.Credentials.Remove(credential);
+            await _contextBet.SaveChangesAsync();
 
             return NoContent();
         }
 
         private bool CredentialExists(int id)
         {
-            return (_context.Credentials?.Any(e => e.CredentialsId == id)).GetValueOrDefault();
+            return (_contextBet.Credentials?.Any(e => e.CredentialsId == id)).GetValueOrDefault();
         }
     }
 }

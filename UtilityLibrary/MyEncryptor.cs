@@ -15,8 +15,7 @@ namespace UtilityLibrary
             string encryptedString = string.Empty;
             try
             {
-                
-                SHA256 sha256 = SHA256.Create();
+                SHA256 sha256 = SHA256. Create();
                 byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(sValue));
                 StringBuilder sb = new();
                 for (int i = 0; i < bytes.Length; i++)

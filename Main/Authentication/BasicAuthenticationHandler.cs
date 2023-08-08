@@ -49,12 +49,15 @@ namespace Main.Authentication
             var authEmailAddress = authSplit[0];
             var authPassword = authSplit.Length > 1 ? authSplit[1] : throw new Exception("Unable to get Password");
 
-           (bool valid, Credential credential ) =  _credentialRepository.CheckLogin(authEmailAddress, authPassword);
+            var result = _credentialRepository.CheckLoginBetacomio(authEmailAddress, authPassword);
 
-            if (!valid)
+            if (result==null)
             {
                 return Task.FromResult(AuthenticateResult.Fail("User e/o password errati !!!"));
             }
+            
+            Credential credential = result;
+            
 
             var authenticatedUser = new AuthenticatedUser("BasicAuthentication", true, credential.EmailAddress);
             var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity(authenticatedUser));
