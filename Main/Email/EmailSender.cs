@@ -5,22 +5,40 @@ namespace Main.EmailSender
 {
     public class EmailSender : IEmailSender
     {
-        public Task SendEmailAsync(string email, string subject, string message)
+
+        public async Task SendEmailAsync(string email, string name, string pwd)
         {
-            var client = new SmtpClient("smtp.office365.com", 587)
+            string message = $"Gentile {name}, " +
+                $"\n All'interno di questo di questa password troverà una " +
+                $"password provvisoria con cui potrà accedere nuovamento al suo profilo." +
+                $"\nLa invitiamo a cambiarla con una nuova di sua preferenza il prima possibile." +
+                $"\n " +
+                $"\nPassword: {pwd}" +
+                $"\n " +
+                $"\nCi scusiamo per il disagio." +
+                $"\nCordialmente," +
+                $"\nBetacomio Torino";
+
+            string subject = "Betacomio Torino, password provvisoria";
+
+            await ExecuteSending(email, subject, message);
+        }
+        private Task ExecuteSending(string email, string subject, string message)
+        {
+            var client = new SmtpClient("smtp.gmail.com", 587)
             {
                 EnableSsl = true,
                 UseDefaultCredentials = false,
-                Credentials = new NetworkCredential("your.email@live.com", "your password")
+                Credentials = new NetworkCredential("betacomio.torino@gmail.com", "siryyttbumgmzsic")
             };
 
             return client.SendMailAsync(
-                new MailMessage(from: "your.email@live.com",
+                new MailMessage(from: "betacomio.torino@gmail.com",
                                 to: email,
                                 subject,
                                 message
                                 ));
         }
     }
-    }
+
 }

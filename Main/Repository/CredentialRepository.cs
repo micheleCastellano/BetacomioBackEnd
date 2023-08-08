@@ -1,4 +1,5 @@
 ﻿using Main.Data;
+using Main.EmailSender;
 using Main.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -10,18 +11,28 @@ namespace Main.Repository
 {
     public class CredentialRepository : ICredentialRepository
     {
-        private readonly BetacomioContext _context;
+        private readonly BetacomioContext _contextBetacomio;
+        private readonly AdventureWorksLt2019Context _contextAdventure;
+        private readonly IEmailSender _emailSender;
 
-        public CredentialRepository(BetacomioContext context)
+        public CredentialRepository(BetacomioContext contextBetacomio, AdventureWorksLt2019Context contextAdventure, IEmailSender emailSender)
         {
-            _context = context;
+            _contextBetacomio = contextBetacomio;
+            _contextAdventure = contextAdventure;
+            _emailSender = emailSender;
         }
 
-        public Credential? GetCredentialsByEmailAddress(string emailAddress)
+
+        public async Task<Credential?> GetCredentialByEmailAddressBetacomioDBAsync(string emailAddress)
         {
+            if (string.IsNullOrWhiteSpace(emailAddress))
+            {
+                return null;
+            }
+
             try
             {
-                return _context.Credentials.FirstOrDefault(c => c.EmailAddress == emailAddress);
+                return await _contextBetacomio.Credentials.FirstOrDefaultAsync(c => c.EmailAddress == emailAddress);
             }
             catch (Exception)
             {
@@ -29,50 +40,70 @@ namespace Main.Repository
             }
         }
 
-        public (bool, Credential?) CheckLogin(string emailAddress, string password)
+        public Credential? CheckLoginBetacomio(string emailAddress, string password)
         {
-
-            var credentials = GetCredentialsByEmailAddress(emailAddress);
-
-            if (credentials == null)
+            try
             {
-                return (false, null);
+                Credential credential = _contextBetacomio.Credentials.First(c => c.EmailAddress == emailAddress);
+
+                bool valid = MyEncryptor.LoginPwdAndSaltHashedTogether(password, credential.PasswordHash, credential.PasswordSalt);
+
+                if (!valid)
+                {
+                    return null;
+                }
+
+                return credential;
+
             }
-
-            bool valid = MyEncryptor.LoginPwdAndSaltNotHashedTogether(password, credentials.PasswordHash, credentials.PasswordSalt);
-
-            if (valid)
+            catch (Exception)
             {
-                return (true, credentials);
+                return null;
             }
-            return (false, null);
-
         }
 
-        public async Task<Credential> AddCredentialAsync(string emailAddress, string password)
+        public async Task<Credential?> CheckLoginAdventure(string emailAddress)
+        {
+            try
+            {
+                Customer customer = _contextAdventure.Customers.First(c => c.EmailAddress == emailAddress);
+
+                string pwd = MyRandomGenerator.GenerateAlphanumericValue(10);
+
+                //await _emailSender.SendEmailAsync(emailAddress, customer.FirstName, pwd);
+
+                return await AddCredentialAsync(emailAddress, pwd);
+
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public async Task<Credential?> AddCredentialAsync(string emailAddress, string password)
         {
             (string encryptedPwd, string salt) = MyEncryptor.EncryptStringSaltInsideHashing(password);
 
+            Credential cred = new Credential()
+            {
+                PasswordSalt = salt,
+                EmailAddress = emailAddress,
+                PasswordHash = encryptedPwd
+            };
 
-            Credential cred = new Credential();
-            cred.PasswordSalt = salt;
-            cred.EmailAddress = emailAddress;
-            cred.PasswordHash = encryptedPwd;
-
-            _context.Credentials.Add(cred);
-
+            _contextBetacomio.Credentials.Add(cred);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _contextBetacomio.SaveChangesAsync();
+                return cred;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("errore: " + ex.Message);
+                return null;
             }
-            return cred;
-
-
         }
 
     }
