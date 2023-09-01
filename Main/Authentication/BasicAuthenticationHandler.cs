@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Text;
 using Main.Repository;
 using Main.Models;
+using UtilityLibrary;
 
 namespace Main.Authentication
 {
@@ -37,17 +38,12 @@ namespace Main.Authentication
             }
 
             var authorizationHeader = Request.Headers["Authorization"].ToString();
-            var authoHeaderRegEx = new Regex("Basic (.*)");
 
-            if (!authoHeaderRegEx.IsMatch(authorizationHeader))
-            {
+            if(BasicAuthenticationUtilities.GetUsernamePassword(authorizationHeader)==("",""))
                 return Task.FromResult(AuthenticateResult.Fail("Authorization Code, not properly formatted"));
-            }
 
-            var authBase64 = Encoding.UTF8.GetString(Convert.FromBase64String(authoHeaderRegEx.Replace(authorizationHeader, "$1")));
-            var authSplit = authBase64.Split(Convert.ToChar(":"), 2);
-            var authEmailAddress = authSplit[0];
-            var authPassword = authSplit.Length > 1 ? authSplit[1] : throw new Exception("Unable to get Password");
+
+            (string authEmailAddress, string authPassword) = BasicAuthenticationUtilities.GetUsernamePassword(authorizationHeader);
 
             var result = _credentialRepository.CheckLoginBetacomio(authEmailAddress, authPassword);
 

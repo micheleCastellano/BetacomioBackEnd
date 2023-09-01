@@ -117,6 +117,8 @@ public partial class Product
     [Column(TypeName = "datetime")]
     public DateTime ModifiedDate { get; set; }
 
+    public int Quantity { get; set; }
+
     [ForeignKey("ProductCategoryId")]
     [InverseProperty("Products")]
     public virtual ProductCategory? ProductCategory { get; set; }

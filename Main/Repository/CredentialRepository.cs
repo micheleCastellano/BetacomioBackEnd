@@ -22,6 +22,31 @@ namespace Main.Repository
             _emailSender = emailSender;
         }
 
+        public async Task<bool> EmailAddressExist(string emailAddress)
+        {
+            try
+            {
+                var customer =await _contextAdventure.Customers.FirstOrDefaultAsync(c => c.EmailAddress == emailAddress);
+
+                if (customer != null)
+                {
+                    return true;
+                }
+
+                var credentials = await _contextBetacomio.Credentials.FirstOrDefaultAsync(c=> c.EmailAddress == emailAddress);
+
+                if (credentials != null)
+                {
+                    return true;
+                }
+                return false;
+
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
 
         public async Task<Credential?> GetCredentialByEmailAddressBetacomioDBAsync(string emailAddress)
         {
@@ -70,7 +95,7 @@ namespace Main.Repository
 
                 string pwd = MyRandomGenerator.GenerateAlphanumericValue(10);
 
-                //await _emailSender.SendEmailAsync(emailAddress, customer.FirstName, pwd);
+                await _emailSender.SendEmailAsync(emailAddress, customer.FirstName, pwd);
 
                 return await AddCredentialAsync(emailAddress, pwd);
 

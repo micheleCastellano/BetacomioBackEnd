@@ -9,7 +9,6 @@ namespace Main.Models;
 public partial class Credential
 {
     [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     [Column("CredentialsID")]
     public int CredentialsId { get; set; }
 

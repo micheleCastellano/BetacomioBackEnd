@@ -85,14 +85,14 @@ public partial class Customer
     /// </summary>
     [StringLength(128)]
     [Unicode(false)]
-    public string PasswordHash { get; set; } = "nontelodo";
+    public string PasswordHash { get; set; } = "non te la do";
 
     /// <summary>
     /// Random value concatenated with the password string before the password is hashed.
     /// </summary>
     [StringLength(10)]
     [Unicode(false)]
-    public string PasswordSalt { get; set; } = "nontelodoo";
+    public string PasswordSalt { get; set; } = "nontelado";
 
     /// <summary>
     /// ROWGUIDCOL number uniquely identifying the record. Used to support a merge replication sample.

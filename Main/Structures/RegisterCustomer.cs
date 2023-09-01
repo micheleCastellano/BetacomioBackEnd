@@ -5,11 +5,11 @@ namespace Main.Structures
 {
     public class RegisterCustomer
     {
-        public string? FirstName { get; set; } 
-        public string? LastName { get; set; } 
-        public string? EmailAddress { get; set; }
-        public string? Phone { get; set; }
-        public string? Password { get; set; }
+        public string? firstName { get; set; } 
+        public string? lastName { get; set; } 
+        public string? emailAddress { get; set; }
+        public string? phone { get; set; }
+        public string? password { get; set; }
 
     }
 }

@@ -72,9 +72,9 @@ public partial class SalesOrderDetail
 
     [ForeignKey("ProductId")]
     [InverseProperty("SalesOrderDetails")]
-    public virtual Product Product { get; set; } = null!;
+    public virtual Product? Product { get; set; }
 
     [ForeignKey("SalesOrderId")]
     [InverseProperty("SalesOrderDetails")]
-    public virtual SalesOrderHeader SalesOrder { get; set; } = null!;
+    public virtual SalesOrderHeader? SalesOrder { get; set; }
 }

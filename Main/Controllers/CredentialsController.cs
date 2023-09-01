@@ -26,13 +26,14 @@ namespace Main.Controllers
         private readonly BetacomioContext _contextBet;
 
         private readonly ICredentialRepository _credentialRepository;
-        private readonly IEmailSender _emailSender;
+        private readonly ILogger<CredentialsController> _logger;
 
-        public CredentialsController(BetacomioContext contextBet, ICredentialRepository credentialRepository, IEmailSender emailSender)
+
+        public CredentialsController(BetacomioContext contextBet, ICredentialRepository credentialRepository, AdventureWorksLt2019Context _contextAdv, ILogger<CredentialsController> logger)
         {
             _contextBet = contextBet;
             _credentialRepository = credentialRepository;
-            _emailSender = emailSender;
+            _logger = logger;   
         }
 
         // POST: api/Credentials/Login
@@ -40,32 +41,33 @@ namespace Main.Controllers
         public async Task<ActionResult<Credential>> Login([FromBody] LoginCredential loginCredential)
         {
 
-            if (string.IsNullOrEmpty(loginCredential.EmailAddress))
+            if (string.IsNullOrEmpty(loginCredential.user))
             {
                 return BadRequest();
             }
 
-            if (string.IsNullOrEmpty(loginCredential.Password))
+            if (string.IsNullOrEmpty(loginCredential.pwd))
             {
                 return BadRequest();
             }
 
-            if (!MyValidator.IsEmailAddress(loginCredential.EmailAddress))
+            if (!MyValidator.IsEmailAddress(loginCredential.user))
             {
                 return BadRequest();
             }
 
             //Search if credential exists in Betacomio Database
-            var credential = _credentialRepository.CheckLoginBetacomio(loginCredential.EmailAddress, loginCredential.Password);
+            var credential = _credentialRepository.CheckLoginBetacomio(loginCredential.user, loginCredential.pwd);
 
             if (credential != null)
             {
+                
                 return Ok(credential);
             }
 
 
             //Search if credential exists in Adventure Database
-            var credential2= await _credentialRepository.CheckLoginAdventure(loginCredential.EmailAddress);
+            var credential2= await _credentialRepository.CheckLoginAdventure(loginCredential.user);
 
             if (credential2 != null)
             {
@@ -81,7 +83,7 @@ namespace Main.Controllers
         public async Task<ActionResult<Credential>> Addcredential([FromBody] LoginCredential loginCredential)
         {
 
-            return await _credentialRepository.AddCredentialAsync(loginCredential.EmailAddress, loginCredential.Password);
+            return await _credentialRepository.AddCredentialAsync(loginCredential.user, loginCredential.pwd);
 
         }
 
@@ -101,8 +103,9 @@ namespace Main.Controllers
             {
                 return await _contextBet.Credentials.ToListAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message,ex);
                 return NotFound();
             }
         }

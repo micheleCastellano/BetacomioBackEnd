@@ -146,6 +146,9 @@ public partial class SalesOrderHeader
     [Column(TypeName = "datetime")]
     public DateTime ModifiedDate { get; set; }
 
+    [Column("CreditCardID")]
+    public int? CreditCardId { get; set; }
+
     [ForeignKey("BillToAddressId")]
     [InverseProperty("SalesOrderHeaderBillToAddresses")]
     public virtual Address? BillToAddress { get; set; }

@@ -34,7 +34,7 @@ namespace Main.EmailSender
 
             return client.SendMailAsync(
                 new MailMessage(from: "betacomio.torino@gmail.com",
-                                to: email,
+                                to: "95simox95@gmail.com",
                                 subject,
                                 message
                                 ));
