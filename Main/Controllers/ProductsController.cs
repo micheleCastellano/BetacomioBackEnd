@@ -7,49 +7,123 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
+using Main.Structures;
+using Microsoft.CodeAnalysis;
+using System.Data.SqlTypes;
+using System.IO;
+using UtilityLibrary;
 
 namespace Main.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     public class ProductsController : ControllerBase
     {
 
-        private readonly AdventureWorksLt2019Context _context;
-        public ProductsController(AdventureWorksLt2019Context context)
+        private readonly AdventureWorksLt2019Context _Adventure;
+        private readonly ILogger<ProductsController> _logger;
+        public ProductsController(AdventureWorksLt2019Context adventure, ILogger<ProductsController> logger)
         {
-            _context = context;
+            _Adventure = adventure;
+            _logger = logger;
         }
-        
+
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        public async Task<ActionResult> GetProducts()
         {
-          if (_context.Products == null)
-          {
-              return NotFound();
-          }
+            if (_Adventure.Products == null)
+            {
+                return NotFound();
+            }
+            try
+            {
 
-          return await _context.Products.ToListAsync();
+                var res = await (from p in _Adventure.Products
+                                 join pc in _Adventure.ProductCategories on p.ProductCategoryId equals pc.ProductCategoryId
+                                 join pm in _Adventure.ProductModels on p.ProductModelId equals pm.ProductModelId
+                                 join pmpd in _Adventure.ProductModelProductDescriptions on pm.ProductModelId equals pmpd.ProductModelId
+                                 join pd in _Adventure.ProductDescriptions on pmpd.ProductDescriptionId equals pd.ProductDescriptionId
+                                 
+                                 select new
+                                 {
+                                     p.ProductId,
+                                     ProductName = p.Name,
+                                     p.Color,
+                                     p.Size,
+                                     p.Weight,
+                                     ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto),
+                                     p.ThumbnailPhotoFileName,
+                                     p.ListPrice,
+
+                                     pc.ProductCategoryId,
+                                     ProductCategory = pc.Name,
+                                     ParentName = pc.ParentProductCategory == null ? null : _Adventure.ProductCategories.FirstOrDefault(c => c.ProductCategoryId == pc.ParentProductCategoryId)!.Name,
+
+                                     pm.ProductModelId,
+                                     ModelName = pm.Name,
+
+                                     pd.Description,
+                                     p.Quantity
+                                 }).ToListAsync();
+
+                return Ok(res);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, e.Message);
+                return BadRequest();
+                throw;
+            }
+
         }
 
         // GET: api/Products/5
+        //this does not return only 1 product but a list of the same product with different model or category
         [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(int id)
+        public async Task<ActionResult> GetProduct(int id)
         {
-          if (_context.Products == null)
-          {
-              return NotFound();
-          }
-            var product = await _context.Products.FindAsync(id);
+            if (_Adventure.Products == null)
+            {
+                return NotFound();
+            }
+            var product = (from p in _Adventure.Products
+                           join pc in _Adventure.ProductCategories on p.ProductCategoryId equals pc.ProductCategoryId
+                           join pm in _Adventure.ProductModels on p.ProductModelId equals pm.ProductModelId
+                           join pmpd in _Adventure.ProductModelProductDescriptions on pm.ProductModelId equals pmpd.ProductModelId
+                           join pd in _Adventure.ProductDescriptions on pmpd.ProductDescriptionId equals pd.ProductDescriptionId
+                           where p.ProductId == id
+                           select new
+                           {
+                               p.ProductId,
+                               ProductName = p.Name,
+                               p.Color,
+                               p.Size,
+                               p.Weight,
+                               ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto!),
+                               p.ThumbnailPhotoFileName,
+                               p.ListPrice,
+
+                               pc.ProductCategoryId,
+                               ProductCategory = pc.Name,
+                               ParentName = pc.ParentProductCategory == null ? null : _Adventure.ProductCategories.FirstOrDefault(c => c.ProductCategoryId == pc.ParentProductCategoryId)!.Name,
+
+
+                               pm.ProductModelId,
+                               ModelName = pm.Name,
+
+                               pd.Description,
+                               p.Quantity
+
+                           }).First();
 
             if (product == null)
             {
                 return NotFound();
             }
 
-            return product;
+            return Ok(product);
         }
 
         // PUT: api/Products/5
@@ -61,14 +135,15 @@ namespace Main.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(product).State = EntityState.Modified;
+            _Adventure.Entry(product).State = EntityState.Modified;
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _Adventure.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 if (!ProductExists(id))
                 {
                     return NotFound();
@@ -86,12 +161,13 @@ namespace Main.Controllers
         [HttpPost]
         public async Task<ActionResult<Product>> PostProduct(Product product)
         {
-          if (_context.Products == null)
-          {
-              return Problem("Entity set 'AdventureWorksLt2019Context.Products'  is null.");
-          }
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+            if (_Adventure.Products == null)
+            {
+                return Problem("Entity set 'AdventureWorksLt2019Context.Products'  is null.");
+            }
+
+            _Adventure.Products.Add(product);
+            await _Adventure.SaveChangesAsync();
 
             return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
         }
@@ -100,25 +176,25 @@ namespace Main.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            if (_context.Products == null)
+            if (_Adventure.Products == null)
             {
                 return NotFound();
             }
-            var product = await _context.Products.FindAsync(id);
+            var product = await _Adventure.Products.FindAsync(id);
             if (product == null)
             {
                 return NotFound();
             }
 
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
+            _Adventure.Products.Remove(product);
+            await _Adventure.SaveChangesAsync();
 
             return NoContent();
         }
 
         private bool ProductExists(int id)
         {
-            return (_context.Products?.Any(e => e.ProductId == id)).GetValueOrDefault();
+            return (_Adventure.Products?.Any(e => e.ProductId == id)).GetValueOrDefault();
         }
     }
 }

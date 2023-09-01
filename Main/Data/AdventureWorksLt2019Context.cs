@@ -36,19 +36,15 @@ public partial class AdventureWorksLt2019Context : DbContext
 
     public virtual DbSet<ProductModelProductDescription> ProductModelProductDescriptions { get; set; }
 
+    public virtual DbSet<Prova> Provas { get; set; }
+
     public virtual DbSet<SalesOrderDetail> SalesOrderDetails { get; set; }
 
     public virtual DbSet<SalesOrderHeader> SalesOrderHeaders { get; set; }
 
-    public virtual DbSet<VGetAllCategory> VGetAllCategories { get; set; }
-
-    public virtual DbSet<VProductAndDescription> VProductAndDescriptions { get; set; }
-
-    public virtual DbSet<VProductModelCatalogDescription> VProductModelCatalogDescriptions { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=.\\SQLEXPRESS;Initial Catalog=AdventureWorksLT2019;Integrated Security=True;TrustServerCertificate=True;");
+//    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+//#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
+//        => optionsBuilder.UseSqlServer("Data Source=.\\SQLEXPRESS;Initial Catalog=AdventureWorksLT2019;Integrated Security=True;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -172,6 +168,7 @@ public partial class AdventureWorksLt2019Context : DbContext
             entity.Property(e => e.ProductCategoryId).HasComment("Product is a member of this product category. Foreign key to ProductCategory.ProductCategoryID. ");
             entity.Property(e => e.ProductModelId).HasComment("Product is a member of this product model. Foreign key to ProductModel.ProductModelID.");
             entity.Property(e => e.ProductNumber).HasComment("Unique product identification number.");
+            entity.Property(e => e.Quantity).HasDefaultValueSql("((100))");
             entity.Property(e => e.Rowguid)
                 .HasDefaultValueSql("(newid())")
                 .HasComment("ROWGUIDCOL number uniquely identifying the record. Used to support a merge replication sample.");
@@ -337,25 +334,6 @@ public partial class AdventureWorksLt2019Context : DbContext
             entity.HasOne(d => d.Customer).WithMany(p => p.SalesOrderHeaders).OnDelete(DeleteBehavior.ClientSetNull);
 
             entity.HasOne(d => d.ShipToAddress).WithMany(p => p.SalesOrderHeaderShipToAddresses).HasConstraintName("FK_SalesOrderHeader_Address_ShipTo_AddressID");
-        });
-
-        modelBuilder.Entity<VGetAllCategory>(entity =>
-        {
-            entity.ToView("vGetAllCategories", "SalesLT");
-        });
-
-        modelBuilder.Entity<VProductAndDescription>(entity =>
-        {
-            entity.ToView("vProductAndDescription", "SalesLT");
-
-            entity.Property(e => e.Culture).IsFixedLength();
-        });
-
-        modelBuilder.Entity<VProductModelCatalogDescription>(entity =>
-        {
-            entity.ToView("vProductModelCatalogDescription", "SalesLT");
-
-            entity.Property(e => e.ProductModelId).ValueGeneratedOnAdd();
         });
 
         OnModelCreatingPartial(modelBuilder);
