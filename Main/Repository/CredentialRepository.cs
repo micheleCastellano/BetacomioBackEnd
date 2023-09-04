@@ -1,4 +1,5 @@
-﻿using Main.Data;
+﻿using Main.Controllers;
+using Main.Data;
 using Main.EmailSender;
 using Main.Models;
 using Microsoft.AspNetCore.Identity;
@@ -14,12 +15,15 @@ namespace Main.Repository
         private readonly BetacomioContext _contextBetacomio;
         private readonly AdventureWorksLt2019Context _contextAdventure;
         private readonly IEmailSender _emailSender;
+        private readonly ILogger<CredentialRepository> _logger;
 
-        public CredentialRepository(BetacomioContext contextBetacomio, AdventureWorksLt2019Context contextAdventure, IEmailSender emailSender)
+
+        public CredentialRepository(BetacomioContext contextBetacomio, AdventureWorksLt2019Context contextAdventure, IEmailSender emailSender, ILogger<CredentialRepository> logger)
         {
             _contextBetacomio = contextBetacomio;
             _contextAdventure = contextAdventure;
             _emailSender = emailSender;
+            _logger = logger;
         }
 
         public async Task<bool> EmailAddressExist(string emailAddress)
@@ -42,8 +46,9 @@ namespace Main.Repository
                 return false;
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 return true;
             }
         }
@@ -59,8 +64,9 @@ namespace Main.Repository
             {
                 return await _contextBetacomio.Credentials.FirstOrDefaultAsync(c => c.EmailAddress == emailAddress);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 return null;
             }
         }
@@ -81,8 +87,9 @@ namespace Main.Repository
                 return credential;
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 return null;
             }
         }
@@ -100,8 +107,9 @@ namespace Main.Repository
                 return await AddCredentialAsync(emailAddress, pwd);
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 return null;
             }
         }
@@ -126,7 +134,7 @@ namespace Main.Repository
             }
             catch (Exception ex)
             {
-                Console.WriteLine("errore: " + ex.Message);
+                _logger.LogError(ex.Message, ex);
                 return null;
             }
         }

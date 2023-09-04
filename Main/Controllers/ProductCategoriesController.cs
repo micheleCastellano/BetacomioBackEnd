@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
-using Main.Models;
-using Main.Structures;
 
 namespace Main.Controllers
 {
@@ -33,17 +26,25 @@ namespace Main.Controllers
             {
                 return NotFound();
             }
+            try
+            {
+                var res = await (from pc in _context.ProductCategories
+                                 where pc.ParentProductCategoryId != null
+                                 select new
+                                 {
+                                     pc.ProductCategoryId,
+                                     pc.Name,
+                                     ParentCategory = pc.ParentProductCategory == null ? null : _context.ProductCategories.FirstOrDefault(c => c.ProductCategoryId == pc.ParentProductCategoryId)!.Name
+                                 }).ToListAsync();
+                return Ok(res);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return BadRequest();
+            }
 
-            var res = await (from pc in _context.ProductCategories
-                       where pc.ParentProductCategoryId != null
-                       select new
-                       {
-                           pc.ProductCategoryId,
-                           pc.Name,
-                           ParentCategory = pc.ParentProductCategory==null? null: _context.ProductCategories.FirstOrDefault(c=>c.ProductCategoryId==pc.ParentProductCategoryId)!.Name
-                       }).ToListAsync();
 
-            return Ok(res);
         }
     }
 

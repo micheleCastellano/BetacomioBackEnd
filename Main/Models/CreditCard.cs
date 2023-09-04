@@ -3,13 +3,17 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Main.Data;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Main.Models;
 
-[Keyless]
-[Table("CreditCard")]
+//[Keyless]
+//[Table("CreditCard")]
 public partial class CreditCard
 {
+    [Key]
     [Column("CreditCardID")]
     public int CreditCardId { get; set; }
 
@@ -26,3 +30,5 @@ public partial class CreditCard
     [Column("CustomerID")]
     public int CustomerId { get; set; }
 }
+
+

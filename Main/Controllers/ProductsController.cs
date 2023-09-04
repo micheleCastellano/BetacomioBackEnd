@@ -1,17 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
-using Main.Structures;
 using Microsoft.CodeAnalysis;
-using System.Data.SqlTypes;
-using System.IO;
-using UtilityLibrary;
 
 namespace Main.Controllers
 {
@@ -28,8 +19,6 @@ namespace Main.Controllers
             _logger = logger;
         }
 
-
-        // GET: api/Products
         [HttpGet]
         public async Task<ActionResult> GetProducts()
         {
@@ -39,7 +28,6 @@ namespace Main.Controllers
             }
             try
             {
-
                 var res = await (from p in _Adventure.Products
                                  join pc in _Adventure.ProductCategories on p.ProductCategoryId equals pc.ProductCategoryId
                                  join pm in _Adventure.ProductModels on p.ProductModelId equals pm.ProductModelId
@@ -79,8 +67,7 @@ namespace Main.Controllers
 
         }
 
-        // GET: api/Products/5
-        //this does not return only 1 product but a list of the same product with different model or category
+        //this method does not return only 1 product but a list of the same product with the same ID with different model or category
         [HttpGet("{id}")]
         public async Task<ActionResult> GetProduct(int id)
         {
@@ -88,45 +75,54 @@ namespace Main.Controllers
             {
                 return NotFound();
             }
-            var product = (from p in _Adventure.Products
-                           join pc in _Adventure.ProductCategories on p.ProductCategoryId equals pc.ProductCategoryId
-                           join pm in _Adventure.ProductModels on p.ProductModelId equals pm.ProductModelId
-                           join pmpd in _Adventure.ProductModelProductDescriptions on pm.ProductModelId equals pmpd.ProductModelId
-                           join pd in _Adventure.ProductDescriptions on pmpd.ProductDescriptionId equals pd.ProductDescriptionId
-                           where p.ProductId == id
-                           select new
-                           {
-                               p.ProductId,
-                               ProductName = p.Name,
-                               p.Color,
-                               p.Size,
-                               p.Weight,
-                               ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto!),
-                               p.ThumbnailPhotoFileName,
-                               p.ListPrice,
-
-                               pc.ProductCategoryId,
-                               ProductCategory = pc.Name,
-                               ParentName = pc.ParentProductCategory == null ? null : _Adventure.ProductCategories.FirstOrDefault(c => c.ProductCategoryId == pc.ParentProductCategoryId)!.Name,
-
-
-                               pm.ProductModelId,
-                               ModelName = pm.Name,
-
-                               pd.Description,
-                               p.Quantity
-
-                           }).First();
-
-            if (product == null)
+            try
             {
-                return NotFound();
-            }
+                var product = await (from p in _Adventure.Products
+                                     join pc in _Adventure.ProductCategories on p.ProductCategoryId equals pc.ProductCategoryId
+                                     join pm in _Adventure.ProductModels on p.ProductModelId equals pm.ProductModelId
+                                     join pmpd in _Adventure.ProductModelProductDescriptions on pm.ProductModelId equals pmpd.ProductModelId
+                                     join pd in _Adventure.ProductDescriptions on pmpd.ProductDescriptionId equals pd.ProductDescriptionId
+                                     where p.ProductId == id
+                                     select new
+                                     {
+                                         p.ProductId,
+                                         ProductName = p.Name,
+                                         p.Color,
+                                         p.Size,
+                                         p.Weight,
+                                         ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto!),
+                                         p.ThumbnailPhotoFileName,
+                                         p.ListPrice,
 
-            return Ok(product);
+                                         pc.ProductCategoryId,
+                                         ProductCategory = pc.Name,
+                                         ParentName = pc.ParentProductCategory == null ? null : _Adventure.ProductCategories.FirstOrDefault(c => c.ProductCategoryId == pc.ParentProductCategoryId)!.Name,
+
+
+                                         pm.ProductModelId,
+                                         ModelName = pm.Name,
+
+                                         pd.Description,
+                                         p.Quantity
+
+                                     }).FirstAsync();
+                if (product == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(product);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return BadRequest();
+            }
+            
+
+
         }
 
-        // PUT: api/Products/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProduct(int id, Product product)
         {
@@ -157,7 +153,6 @@ namespace Main.Controllers
             return NoContent();
         }
 
-        // POST: api/Products
         [HttpPost]
         public async Task<ActionResult<Product>> PostProduct(Product product)
         {
@@ -172,7 +167,6 @@ namespace Main.Controllers
             return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
         }
 
-        // DELETE: api/Products/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
@@ -191,7 +185,6 @@ namespace Main.Controllers
 
             return NoContent();
         }
-
         private bool ProductExists(int id)
         {
             return (_Adventure.Products?.Any(e => e.ProductId == id)).GetValueOrDefault();
