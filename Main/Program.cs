@@ -1,4 +1,4 @@
-using Main.Authentication;
+﻿using Main.Authentication;
 using Main.Data;
 using Main.EmailSender;
 using Main.Repository;
@@ -11,8 +11,11 @@ using NLog;
 using NLog.Web;
 using NuGet.Protocol.Core.Types;
 using System.Text.Json.Serialization;
+using Main.Controllers;
 
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+
+
 try
 {
     var builder = WebApplication.CreateBuilder(args);

@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
-using Main.Authentication;
 using Main.Structures;
 using Main.Repository;
 using UtilityLibrary;
-using System.Net.Mail;
 
 namespace Main.Controllers
 {
@@ -24,8 +17,6 @@ namespace Main.Controllers
         private readonly ICredentialRepository _credentialRepository;
         private readonly BetacomioContext _betacomioDB;
         private readonly ILogger<CustomersController> _logger;
-
-
         public CustomersController(AdventureWorksLt2019Context adventurDB, ICredentialRepository credentialRepository, BetacomioContext betacomioDB, ILogger<CustomersController> logger)
         {
             _adventureDB = adventurDB;
@@ -34,7 +25,6 @@ namespace Main.Controllers
             _logger = logger;
         }
 
-        // GET: api/Customers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
         {
@@ -45,7 +35,6 @@ namespace Main.Controllers
             return await _adventureDB.Customers.ToListAsync();
         }
 
-        // GET: api/Customers/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Customer>> GetCustomer(int id)
         {
@@ -63,37 +52,6 @@ namespace Main.Controllers
             return customer;
         }
 
-        // PUT: api/Customers/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, Customer customer)
-        {
-            if (id != customer.CustomerId)
-            {
-                return BadRequest();
-            }
-
-            _adventureDB.Entry(customer).State = EntityState.Modified;
-
-            try
-            {
-                await _adventureDB.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CustomerExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // POST: api/Customers
         [HttpPost]
         public async Task<ActionResult> PostCustomer(RegisterCustomer registerCustomer)
         {
@@ -160,15 +118,45 @@ namespace Main.Controllers
                 await transBetacomio.CommitAsync();
                 return Ok(customer);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 await transAdventure.RollbackAsync();
                 await transBetacomio.RollbackAsync();
                 return Problem();
             }
         }
 
-        // DELETE: api/Customers/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutCustomer(int id, Customer customer)
+        {
+            if (id != customer.CustomerId)
+            {
+                return BadRequest();
+            }
+
+            _adventureDB.Entry(customer).State = EntityState.Modified;
+
+            try
+            {
+                await _adventureDB.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                if (!CustomerExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    _logger.LogError(ex.Message, ex);
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCustomer(int id)
         {
@@ -183,9 +171,18 @@ namespace Main.Controllers
             }
 
             _adventureDB.Customers.Remove(customer);
-            await _adventureDB.SaveChangesAsync();
+            try
+            {
+                await _adventureDB.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return Problem("not elimated", statusCode : 500);
+            }
 
-            return NoContent();
+
         }
 
         private bool CustomerExists(int id)

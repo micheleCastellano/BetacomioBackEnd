@@ -1,20 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
 using Main.Repository;
-using Microsoft.Data.SqlClient;
-using System.Data;
 using Main.Structures;
-using Microsoft.AspNetCore.Http.HttpResults;
 using UtilityLibrary;
-using System.ComponentModel.DataAnnotations;
-using Main.EmailSender;
 
 namespace Main.Controllers
 {
@@ -24,10 +14,8 @@ namespace Main.Controllers
     public class CredentialsController : ControllerBase
     {
         private readonly BetacomioContext _contextBet;
-
         private readonly ICredentialRepository _credentialRepository;
         private readonly ILogger<CredentialsController> _logger;
-
 
         public CredentialsController(BetacomioContext contextBet, ICredentialRepository credentialRepository, AdventureWorksLt2019Context _contextAdv, ILogger<CredentialsController> logger)
         {
@@ -36,7 +24,6 @@ namespace Main.Controllers
             _logger = logger;   
         }
 
-        // POST: api/Credentials/Login
         [HttpPost]
         public async Task<ActionResult<Credential>> Login([FromBody] LoginCredential loginCredential)
         {
@@ -76,18 +63,8 @@ namespace Main.Controllers
 
             //Credential doesn't exist neither in Betacomio nor in Adventure
             return NotFound();
-
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Credential>> Addcredential([FromBody] LoginCredential loginCredential)
-        {
-
-            return await _credentialRepository.AddCredentialAsync(loginCredential.user, loginCredential.pwd);
-
-        }
-
-        // GET: api/Credentials/GetCredentials
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Credential>>> GetCredentials()
         {
@@ -110,7 +87,6 @@ namespace Main.Controllers
             }
         }
 
-        // GET: api/Credentials/GetCredentialById/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Credential>> GetCredentialById(int id)
         {
@@ -120,7 +96,7 @@ namespace Main.Controllers
             }
             if (!await _contextBet.Database.CanConnectAsync())
             {
-                return NotFound(new ResponseToFrontEnd(500, false, "database not available"));
+                return NotFound("database didn't work");
             }
 
             var credential = await _contextBet.Credentials.FindAsync(id);
@@ -133,7 +109,6 @@ namespace Main.Controllers
             return credential;
         }
 
-        // PUT: api/Credentials/PutCredential/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutCredential(int id, Credential credential)
         {
@@ -152,8 +127,9 @@ namespace Main.Controllers
             {
                 await _contextBet.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
+                _logger.LogError(ex.Message);
                 if (!CredentialExists(id))
                 {
                     return NotFound();
@@ -167,7 +143,6 @@ namespace Main.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Credentials/DeleteCredential/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCredential(int id)
         {
@@ -182,9 +157,16 @@ namespace Main.Controllers
             }
 
             _contextBet.Credentials.Remove(credential);
-            await _contextBet.SaveChangesAsync();
-
-            return NoContent();
+            try
+            {
+                await _contextBet.SaveChangesAsync();
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return Problem("savechanges didn't work",statusCode:500);
+            }
         }
 
         private bool CredentialExists(int id)

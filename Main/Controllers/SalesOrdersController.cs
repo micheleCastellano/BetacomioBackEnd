@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
 using Main.Structures;
 using Main.Authentication;
-using System.Text.RegularExpressions;
 using UtilityLibrary;
 
 namespace Main.Controllers
@@ -53,14 +47,13 @@ namespace Main.Controllers
             {
                 _contextAdventure.SalesOrderHeaders.Add(header);
 
-
-
                 try
                 {
                     await _contextAdventure.SaveChangesAsync();
                     foreach (SalesOrderDetail d in order.SalesOrderDetails)
                     {
                         d.SalesOrderId = header.SalesOrderId;
+                        d.ModifiedDate = DateTime.Now;
                         header.SalesOrderDetails.Add(d);
                         _contextAdventure.SalesOrderDetails.Add(d);
                     }
@@ -104,9 +97,10 @@ namespace Main.Controllers
                     .ToListAsync();
                 return Ok(res);
             }
-            catch
+            catch (Exception ex)
             {
-                return Problem("fai funzionare sto codice cretino");
+                _logger.LogError(ex.Message, ex);
+                return Problem("database problem", statusCode: 500);
             }
         }
 
@@ -123,37 +117,32 @@ namespace Main.Controllers
             (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(authorizationHeader);
             try
             {
-                Customer c = await _contextAdventure.Customers.FirstAsync(c => c.CustomerId == 30019);
+                Customer c = await _contextAdventure.Customers.FirstAsync(c => c.EmailAddress==emailAddress);
 
-                var orders = (from h in _contextAdventure.SalesOrderHeaders
-                              join d in _contextAdventure.SalesOrderDetails on h.SalesOrderId equals d.SalesOrderId
-                              join p in _contextAdventure.Products on d.ProductId equals p.ProductId
-                              where h.CustomerId == 30019
-                              select new
-                              {
-                                  h.SalesOrderId,
-                                  d.SalesOrderDetailId,
-                                  p.ProductId,
-                                  h.OrderDate,
-                                  h.Status,
-                                  ProductName = p.Name,
-                                  ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto),
-                                  p.ThumbnailPhotoFileName,
-                                  d.OrderQty,
-                                  d.UnitPrice,
-                                  d.UnitPriceDiscount,
-                                  d.LineTotal
-                              }).ToList();
-
-
-                //var headers = await _contextAdventure.SalesOrderHeaders
-                //    .Where(h => h.CustomerId == c.CustomerId)
-                //    .Include(h=>h.SalesOrderDetails)
-                //    .ToListAsync();
+                var orders = await (from h in _contextAdventure.SalesOrderHeaders
+                                    join d in _contextAdventure.SalesOrderDetails on h.SalesOrderId equals d.SalesOrderId
+                                    join p in _contextAdventure.Products on d.ProductId equals p.ProductId
+                                    where h.CustomerId == c.CustomerId
+                                    select new
+                                    {
+                                        h.SalesOrderId,
+                                        d.SalesOrderDetailId,
+                                        p.ProductId,
+                                        h.OrderDate,
+                                        h.Status,
+                                        ProductName = p.Name,
+                                        ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto),
+                                        p.ThumbnailPhotoFileName,
+                                        d.OrderQty,
+                                        d.UnitPrice,
+                                        d.UnitPriceDiscount,
+                                        d.LineTotal
+                                    }).ToListAsync();
                 return Ok(orders);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex.Message, ex);
                 return BadRequest();
             }
 
