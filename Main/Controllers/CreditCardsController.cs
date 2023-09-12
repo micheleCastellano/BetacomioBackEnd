@@ -2,10 +2,12 @@
 using Microsoft.EntityFrameworkCore;
 using Main.Data;
 using Main.Models;
+using UtilityLibrary;
+using Main.Authentication;
 
 namespace Main.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     public class CreditCardsController : ControllerBase
     {
@@ -21,9 +23,8 @@ namespace Main.Controllers
             _contextAdv = contextAdv;
         }
 
-        // GET: api/CreditCards
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CreditCard>>> GetCreditCards()
+        public async Task<ActionResult<IEnumerable<CreditCard>>> GetAllCreditCards()
         {
             if (_contextBet.CreditCards == null)
             {
@@ -32,24 +33,31 @@ namespace Main.Controllers
             return await _contextBet.CreditCards.ToListAsync();
         }
 
-        // GET: api/CreditCards/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<CreditCard>> GetCreditCard(int id)
+        [BasicAuthorization]
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<CreditCard>>> GetCreditCardsByCustomer()
         {
             if (_contextBet.CreditCards == null)
             {
                 return NotFound();
             }
-            var creditCard = await _contextBet.CreditCards.FindAsync(id);
 
-            if (creditCard == null)
+            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
+
+            try
             {
-                return NotFound();
+                var customer = await _contextAdv.Customers.FirstAsync(c => c.EmailAddress == emailAddress);
+                if (customer == null)
+                    return BadRequest();
+                var creditcards = await _contextBet.CreditCards.Where(c => c.CustomerId == customer.CustomerId).ToListAsync();
+                return Ok(creditcards);
             }
-
-            return creditCard;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return Problem(ex.Message, statusCode: 500);
+            }
         }
-
 
         [HttpPost]
         public async Task<ActionResult<CreditCard>> PostCreditCard(CreditCard creditCard)
@@ -62,24 +70,34 @@ namespace Main.Controllers
             {
                 return Problem("Entity set 'AdventureWorksLt2019Context.Customers'  is null.");
             }
+            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
 
 
             try
             {
-                var customer = await _contextAdv.Customers.FindAsync(creditCard.CustomerId);
-                if (customer == null)
-                    return BadRequest("customerID does not exist");
+                var creditCardID = await _contextBet.CreditCards.Where(c =>
+                c.ExpireDate==creditCard.ExpireDate && c.FirstName==creditCard.FirstName && c.Number==creditCard.Number && c.LastName==creditCard.LastName && c.Cvv==creditCard.Cvv)
+                .Select(c => c.CreditCardId).FirstOrDefaultAsync();
+                if (creditCardID == 0)
+                {
+                    await _contextBet.CreditCards.AddAsync(creditCard);
+                    await _contextAdv.SaveChangesAsync();
+                    creditCardID = creditCard.CreditCardId;
+                }
 
+                var customer = await _contextAdv.Customers.FirstAsync(c => c.EmailAddress == emailAddress);
+                if (customer == null)
+                    return BadRequest("customer address does not exist");
+                creditCard.CustomerId = customer.CustomerId;
                 _contextBet.CreditCards.Add(creditCard);
                 await _contextBet.SaveChangesAsync();
-                return CreatedAtAction("GetCreditCard", new { id = creditCard.CreditCardId }, creditCard);
+                return Ok(creditCard);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message, ex);
-                return BadRequest();
+                return Problem(ex.Message, statusCode: 500);
             }
-
         }
     }
 }

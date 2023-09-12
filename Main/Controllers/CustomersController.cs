@@ -5,6 +5,8 @@ using Main.Models;
 using Main.Structures;
 using Main.Repository;
 using UtilityLibrary;
+using Microsoft.AspNetCore.JsonPatch;
+using Main.Authentication;
 
 namespace Main.Controllers
 {
@@ -127,13 +129,36 @@ namespace Main.Controllers
             }
         }
 
+        //[BasicAuthorization]
+        //[HttpPatch]
+        //public async Task<IActionResult> PatchCustomer(RegisterCustomer data)
+        //{
+        //    (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
+
+        //    try
+        //    {
+        //        var customer = await _adventureDB.Customers.FirstAsync(c => c.EmailAddress==emailAddress);
+
+        //        Credential cred = new Credential();
+        //        Customer c = new Customer();
+
+        //        if(!string.IsNullOrEmpty(data.emailAddress))
+        //        {
+        //            c.EmailAddress=data.emailAddress;
+        //        }
+
+        //        if(!string.IsNullOrEmpty(data.firstName))
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return Problem(ex.Message);
+        //    }
+
+        //}
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, Customer customer)
+        public async Task<IActionResult> PutCustomer(int id,RegisterCustomer customer)
         {
-            if (id != customer.CustomerId)
-            {
-                return BadRequest();
-            }
 
             _adventureDB.Entry(customer).State = EntityState.Modified;
 

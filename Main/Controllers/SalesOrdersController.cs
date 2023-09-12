@@ -27,10 +27,11 @@ namespace Main.Controllers
         [HttpPost]
         public async Task<ActionResult> PostSalesOrder(SalesOrder order)
         {
+            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
+
             SalesOrderHeader header = new();
             header.OrderDate = DateTime.Now;
             header.Status = order.Status;
-            header.CustomerId = order.CustomerID;
             header.ShipToAddressId = order.ShipToAddressID;
             header.BillToAddressId = order.BillToAddressID;
             header.SubTotal = order.SubTotal;
@@ -43,12 +44,18 @@ namespace Main.Controllers
             header.ShipDate = DateTime.Now;
             header.ShipMethod = "";
 
-            using var transAdventure = _contextAdventure.Database.BeginTransaction();
+            using (var transAdventure = _contextAdventure.Database.BeginTransaction())
             {
-                _contextAdventure.SalesOrderHeaders.Add(header);
 
                 try
                 {
+                    var customer = await _contextAdventure.Customers.FirstAsync(c => c.EmailAddress == emailAddress);
+                    if (customer == null)
+                        return BadRequest();
+                    header.CustomerId = customer.CustomerId;
+
+                    _contextAdventure.SalesOrderHeaders.Add(header);
+
                     await _contextAdventure.SaveChangesAsync();
                     foreach (SalesOrderDetail d in order.SalesOrderDetails)
                     {
@@ -57,19 +64,9 @@ namespace Main.Controllers
                         header.SalesOrderDetails.Add(d);
                         _contextAdventure.SalesOrderDetails.Add(d);
                     }
-                    try
-                    {
-                        await _contextAdventure.SaveChangesAsync();
-                        await transAdventure.CommitAsync();
-                        return Ok(header);
-
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.Message, ex);
-                        await transAdventure.RollbackAsync();
-                        return BadRequest();
-                    }
+                    await _contextAdventure.SaveChangesAsync();
+                    await transAdventure.CommitAsync();
+                    return Ok(header);
                 }
                 catch (Exception ex)
                 {
@@ -109,15 +106,10 @@ namespace Main.Controllers
         [HttpGet]
         public async Task<ActionResult> GetOrdersByCustomer()
         {
-            var authorizationHeader = Request.Headers["Authorization"].ToString();
-
-            if (BasicAuthenticationUtilities.GetUsernamePassword(authorizationHeader) == ("", ""))
-                return BadRequest();
-
-            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(authorizationHeader);
+            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
             try
             {
-                Customer c = await _contextAdventure.Customers.FirstAsync(c => c.EmailAddress==emailAddress);
+                Customer c = await _contextAdventure.Customers.FirstAsync(c => c.EmailAddress == emailAddress);
 
                 var orders = await (from h in _contextAdventure.SalesOrderHeaders
                                     join d in _contextAdventure.SalesOrderDetails on h.SalesOrderId equals d.SalesOrderId
