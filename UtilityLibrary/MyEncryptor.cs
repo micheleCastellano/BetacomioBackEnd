@@ -27,7 +27,6 @@ namespace UtilityLibrary
                 Console.WriteLine("Error in encryption: " + e.Message);
             }
             return encryptedString;
-            ;
         }
 
         public static (string encryptedPass, string salt) EncryptStringSaltInsideHashing(string sValue)

@@ -20,6 +20,7 @@ public partial class CreditCard
     [StringLength(20)]
     public string Number { get; set; } = null!;
 
+
     [Column("CVV")]
     [StringLength(5)]
     public string Cvv { get; set; } = null!;
@@ -29,6 +30,12 @@ public partial class CreditCard
 
     [Column("CustomerID")]
     public int CustomerId { get; set; }
+
+    [StringLength(50)]
+    public string? FirstName { get; set; } 
+
+    [StringLength(50)]
+    public string? LastName { get; set; } 
 }
 
 
