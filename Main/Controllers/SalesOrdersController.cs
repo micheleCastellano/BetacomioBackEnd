@@ -5,6 +5,7 @@ using Main.Models;
 using Main.Structures;
 using Main.Authentication;
 using UtilityLibrary;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Main.Controllers
 {
@@ -102,7 +103,7 @@ namespace Main.Controllers
         }
 
 
-        [BasicAuthorization]
+        [Authorize(Policy = "Customer")]
         [HttpGet]
         public async Task<ActionResult> GetOrdersByCustomer()
         {

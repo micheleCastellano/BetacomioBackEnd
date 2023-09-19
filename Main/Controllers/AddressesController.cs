@@ -98,7 +98,7 @@ namespace Main.Controllers
                     await _contextAdv.CustomerAddresses.AddAsync(ca);
                     await _contextAdv.SaveChangesAsync();
                     await trans.CommitAsync();
-                    return CreatedAtAction("GetAddress", new { id = addressID }, address);
+                    return Ok(address);
                 }
                 catch (Exception ex)
                 {
