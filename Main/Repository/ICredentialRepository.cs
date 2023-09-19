@@ -7,6 +7,7 @@ namespace Main.Repository
         Task<Credential?> AddCredentialAsync(string emailAddress, string password);
         Task<Credential?> CheckLoginAdventure(string emailAddress);
         Credential? CheckLoginBetacomio(string emailAddress, string password);
+        Credential? CheckAdminBetacomio(string emailAddress, string password);
         Task<Credential?> GetCredentialByEmailAddressBetacomioDBAsync(string emailAddress);
         Task<bool> EmailAddressExist(string emailAddress);
     }
