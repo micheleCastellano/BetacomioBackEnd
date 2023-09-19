@@ -93,6 +93,29 @@ namespace Main.Repository
                 return null;
             }
         }
+        // NEW
+        public Credential? CheckAdminBetacomio(string emailAddress, string password)
+        {
+            try
+            {
+                Credential credential = _contextBetacomio.Credentials.First(c => c.EmailAddress == emailAddress && c.AdminAccess);
+
+                bool valid = MyEncryptor.LoginPwdAndSaltHashedTogether(password, credential.PasswordHash, credential.PasswordSalt);
+
+                if (!valid)
+                {
+                    return null;
+                }
+
+                return credential;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return null;
+            }
+        }
 
         public async Task<Credential?> CheckLoginAdventure(string emailAddress)
         {

@@ -41,9 +41,30 @@ try
 
 
     builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("BasicAuthentication", opt => { });
+    // NEW AUTHENTICATION SCHEME HERE TO CHECK IF USER HAS ADMIN ACCESS
+    builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, AdminAuthenticationHandler>("AdminAuthentication", opt => { });
 
+    //builder.Services.AddAuthorization(opt =>
+    //               opt.AddPolicy("BasicAuthentication", new AuthorizationPolicyBuilder("BasicAuthentication").RequireAuthenticatedUser().Build()));
+    // CAN REPLACE CODE ABOVE WITH CODE BELOW
+    // TO AUTHORIZE CONTROLLERS WE ADD THIS ATTRIBUTE: es. [Authorize(Policy = "Customer")]
     builder.Services.AddAuthorization(opt =>
-                   opt.AddPolicy("BasicAuthentication", new AuthorizationPolicyBuilder("BasicAuthentication").RequireAuthenticatedUser().Build()));
+    {
+        opt.AddPolicy("Customer", policy =>
+        {
+            policy.AuthenticationSchemes.Add("BasicAuthentication");
+            policy.RequireAuthenticatedUser();
+        });
+    });
+    builder.Services.AddAuthorization(opt =>
+    {
+        opt.AddPolicy("Admin", policy =>
+        {
+            policy.AuthenticationSchemes.Add("AdminAuthentication");
+            policy.RequireAuthenticatedUser();
+        });
+    });
+    // END NEW
 
     builder.Services.AddCors(opt =>
     {

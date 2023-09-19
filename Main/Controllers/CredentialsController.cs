@@ -5,6 +5,7 @@ using Main.Models;
 using Main.Repository;
 using Main.Structures;
 using UtilityLibrary;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Main.Controllers
 {
@@ -23,7 +24,6 @@ namespace Main.Controllers
             _credentialRepository = credentialRepository;
             _logger = logger;   
         }
-
         [HttpPost]
         public async Task<ActionResult<Credential>> Login([FromBody] LoginCredential loginCredential)
         {
