@@ -7,11 +7,12 @@ using Main.Repository;
 using UtilityLibrary;
 using Microsoft.AspNetCore.JsonPatch;
 using Main.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Main.Controllers
 {
     //[BasicAuthorization]
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     public class CustomersController : ControllerBase
     {
@@ -35,6 +36,43 @@ namespace Main.Controllers
                 return NotFound();
             }
             return await _adventureDB.Customers.ToListAsync();
+        }        
+        
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Customer>>> GetCustomersOrderedByDateRegister()
+        {
+            if (_adventureDB.Customers == null)
+            {
+                return NotFound();
+            }
+            return await (from c in _adventureDB.Customers
+                          orderby c.ModifiedDate
+                          select c).ToListAsync();
+        }
+
+        [Authorize(Policy ="Customer")]
+        [HttpGet]
+        public async Task<ActionResult<Customer>> GetCustomerByHeader()
+        {
+            if (_adventureDB.Customers == null)
+            {
+                return NotFound();
+            }
+            (string emailAddress, string password) = BasicAuthenticationUtilities.GetUsernamePassword(Request.Headers["Authorization"].ToString());
+
+            try
+            {
+                var customer = await _adventureDB.Customers.FirstAsync(c => c.EmailAddress == emailAddress);
+                if (customer == null)
+                    return NotFound();
+                return Ok(customer);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, ex);
+                return Problem(ex.Message, statusCode: 500);
+            }
+
         }
 
         [HttpGet("{id}")]
@@ -157,7 +195,7 @@ namespace Main.Controllers
         //}
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id,RegisterCustomer customer)
+        public async Task<IActionResult> PutCustomer(int id, RegisterCustomer customer)
         {
 
             _adventureDB.Entry(customer).State = EntityState.Modified;
@@ -204,7 +242,7 @@ namespace Main.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message, ex);
-                return Problem("not elimated", statusCode : 500);
+                return Problem("not elimated", statusCode: 500);
             }
 
 

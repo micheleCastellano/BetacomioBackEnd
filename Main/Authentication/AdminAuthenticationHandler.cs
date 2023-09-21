@@ -48,6 +48,8 @@ namespace Main.Authentication
             // CHANGE CONTROL BELOW TO CHECK ADMIN RIGHTS
             var result = _credentialRepository.CheckLoginBetacomio(authEmailAddress, authPassword);
 
+
+
             if (result == null)
             {
                 return Task.FromResult(AuthenticateResult.Fail("User e/o password errati !!!"));
@@ -55,6 +57,8 @@ namespace Main.Authentication
 
             Credential credential = result;
 
+            if (!_credentialRepository.CheckIfAdmim(credential.EmailAddress))
+                return Task.FromResult(AuthenticateResult.Fail("User is not admin"));
 
             var authenticatedUser = new AuthenticatedUser("BasicAuthentication", true, credential.EmailAddress);
             var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity(authenticatedUser));

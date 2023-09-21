@@ -20,5 +20,5 @@ public partial class Credential
 
     [StringLength(50)]
     public string PasswordSalt { get; set; } = null!;
-    public bool AdminAccess { get; set; }
+    //public bool AdminAccess { get; set; }
 }
