@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.SqlTypes;
 using Microsoft.EntityFrameworkCore;
 
 namespace Main.Models;
@@ -105,6 +106,8 @@ public partial class Customer
     /// </summary>
     [Column(TypeName = "datetime")]
     public DateTime ModifiedDate { get; set; }
+
+    public bool AdminAccess { get; set; }
 
     [InverseProperty("Customer")]
     public virtual ICollection<CustomerAddress> CustomerAddresses { get; set; } = new List<CustomerAddress>();

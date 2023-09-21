@@ -102,6 +102,23 @@ namespace Main.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<ActionResult<ICollection<SalesOrderHeader>>> GetOrdersOrderedByDate()
+        {
+            if (_contextAdventure.SalesOrderHeaders == null)
+            {
+                return NotFound();
+            }
+            if (_contextAdventure.SalesOrderDetails == null)
+            {
+                return NotFound();
+            }
+
+            return await _contextAdventure.SalesOrderHeaders
+                .Include(s => s.SalesOrderDetails)
+                .OrderBy(s => s.OrderDate)
+                .ToListAsync();
+        }
 
         [Authorize(Policy = "Customer")]
         [HttpGet]

@@ -36,8 +36,6 @@ public partial class AdventureWorksLt2019Context : DbContext
 
     public virtual DbSet<ProductModelProductDescription> ProductModelProductDescriptions { get; set; }
 
-    public virtual DbSet<Prova> Provas { get; set; }
-
     public virtual DbSet<SalesOrderDetail> SalesOrderDetails { get; set; }
 
     public virtual DbSet<SalesOrderHeader> SalesOrderHeaders { get; set; }
