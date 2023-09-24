@@ -9,6 +9,7 @@ using Main.Data;
 using Main.Models;
 using UtilityLibrary;
 using Main.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Main.Controllers
 {
@@ -35,8 +36,8 @@ namespace Main.Controllers
             }
             return await _contextAdv.Addresses.ToListAsync();
         }
-        
-        [BasicAuthorization]
+
+        [Authorize(Policy = "Customer")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Address>>> GetAddressesByCustomer()
         {
@@ -61,7 +62,7 @@ namespace Main.Controllers
             }
         }
 
-        [BasicAuthorization]
+        [Authorize(Policy="Customer")]
         [HttpPost]
         public async Task<ActionResult<Address>> PostAddress(Address address)
         {

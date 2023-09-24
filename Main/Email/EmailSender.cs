@@ -34,7 +34,7 @@ namespace Main.EmailSender
 
             return client.SendMailAsync(
                 new MailMessage(from: "betacomio.torino@gmail.com",
-                                to: "betacomio.torino@gmial.com",//non metto email perchè le email nel db non esistono davvero
+                                to: "betacomio.torino@gmail.com",//non metto email perchè le email nel db non esistono davvero
                                 subject,
                                 message
                                 ));
