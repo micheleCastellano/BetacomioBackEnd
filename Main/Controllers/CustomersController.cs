@@ -8,6 +8,8 @@ using UtilityLibrary;
 using Microsoft.AspNetCore.JsonPatch;
 using Main.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace Main.Controllers
 {
@@ -20,6 +22,7 @@ namespace Main.Controllers
         private readonly ICredentialRepository _credentialRepository;
         private readonly BetacomioContext _betacomioDB;
         private readonly ILogger<CustomersController> _logger;
+        IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: false, reloadOnChange: true).Build();
         public CustomersController(AdventureWorksLt2019Context adventurDB, ICredentialRepository credentialRepository, BetacomioContext betacomioDB, ILogger<CustomersController> logger)
         {
             _adventureDB = adventurDB;
@@ -36,8 +39,9 @@ namespace Main.Controllers
                 return NotFound();
             }
             return await _adventureDB.Customers.ToListAsync();
-        }        
-        
+        }
+
+        [Authorize(Policy ="Admin")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Customer>>> GetCustomersOrderedByDateRegister()
         {
@@ -144,7 +148,7 @@ namespace Main.Controllers
                 await _adventureDB.SaveChangesAsync();
 
 
-                (string encryptedPwd, string salt) = MyEncryptor.EncryptStringSaltInsideHashing(registerCustomer.password);
+                (string encryptedPwd, string salt) = MyEncryptor.EncryptStringSaltInsideHashing(registerCustomer.password.Trim());
                 Credential cred = new Credential()
                 {
                     PasswordSalt = salt,
@@ -194,32 +198,121 @@ namespace Main.Controllers
 
         //}
 
+        [Authorize(Policy = "Customer")]
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, RegisterCustomer customer)
+        public IActionResult PutCustomer(int id, RegisterCustomer customer)
         {
-
-            _adventureDB.Entry(customer).State = EntityState.Modified;
-
-            try
+            if (string.IsNullOrEmpty(customer.firstName) ||
+                string.IsNullOrEmpty(customer.lastName) ||
+                (string.IsNullOrEmpty(customer.emailAddress) || !MyValidator.IsEmailAddress(customer.emailAddress)) ||
+                string.IsNullOrEmpty(customer.phone) ||
+                string.IsNullOrEmpty(customer.password))
             {
-                await _adventureDB.SaveChangesAsync();
+                return BadRequest();
             }
-            catch (DbUpdateConcurrencyException ex)
+            // Password encryption
+            (string encryptedPwd, string salt) = MyEncryptor.EncryptStringSaltInsideHashing(customer.password.Trim());
+            using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
             {
-                if (!CustomerExists(id))
+                conn.Open();
+                SqlTransaction trans = conn.BeginTransaction();
+                try
                 {
-                    return NotFound();
+                    using (SqlCommand command = new SqlCommand("sp_UpdateCustomer", conn)
+                    )
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                        command.Parameters.Add("@FirstName", SqlDbType.NVarChar).Value = customer.firstName;
+                        command.Parameters.Add("@LastName", SqlDbType.NVarChar).Value = customer.lastName;
+                        command.Parameters.Add("@EmailAddress", SqlDbType.NVarChar).Value = customer.emailAddress;
+                        command.Parameters.Add("@Phone", SqlDbType.NVarChar).Value = customer.phone;
+                        command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar).Value = encryptedPwd;
+                        command.Parameters.Add("@PasswordSalt", SqlDbType.NVarChar).Value = salt;
+                        command.Transaction = trans;
+                        int res = command.ExecuteNonQuery();
+                        if (res == -1)
+                        {
+                            trans.Rollback();
+                            return BadRequest();
+                        }
+                        trans.Commit();
+                        return Ok();
+                    }
                 }
-                else
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    _logger.LogError(ex.Message, ex);
-                    throw;
+                    trans.Rollback();
+                    if (!CustomerExists(id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        _logger.LogError(ex.Message, ex);
+                        throw;
+                    }
                 }
             }
-
-            return NoContent();
         }
 
+        [Authorize(Policy ="Admin")]
+        [HttpPut("{id}")]
+        public IActionResult PutCustomerAdmin(int id, Customer customer)
+        {
+            if(id != customer.CustomerId ||
+                string.IsNullOrEmpty(customer.FirstName) ||
+                string.IsNullOrEmpty(customer.LastName) ||
+                (string.IsNullOrEmpty(customer.EmailAddress) || !MyValidator.IsEmailAddress(customer.EmailAddress)) ||
+                string.IsNullOrEmpty(customer.Phone)) 
+            {
+                return BadRequest();
+            }
+            using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
+            {
+                conn.Open();
+                SqlTransaction trans = conn.BeginTransaction();
+                try
+                {
+                    using (SqlCommand command = new SqlCommand("sp_UpdateCustomer", conn)
+                    )
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                        command.Parameters.Add("@FirstName", SqlDbType.NVarChar).Value = customer.FirstName;
+                        command.Parameters.Add("@LastName", SqlDbType.NVarChar).Value = customer.LastName;
+                        command.Parameters.Add("@EmailAddress", SqlDbType.NVarChar).Value = customer.EmailAddress;
+                        command.Parameters.Add("@Phone", SqlDbType.NVarChar).Value = customer.Phone;
+                        command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar).Value = DBNull.Value;
+                        command.Parameters.Add("@PasswordSalt", SqlDbType.NVarChar).Value = DBNull.Value;
+                        command.Transaction = trans;
+                        int res = command.ExecuteNonQuery();
+                        if (res == -1)
+                        {
+                            trans.Rollback();
+                            return BadRequest();
+                        }
+                        trans.Commit();
+                        return Ok();
+                    }
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    trans.Rollback();
+                    if (!CustomerExists(id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        _logger.LogError(ex.Message, ex);
+                        throw;
+                    }
+                }
+            }
+        }
+
+        [Authorize(Policy = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCustomer(int id)
         {

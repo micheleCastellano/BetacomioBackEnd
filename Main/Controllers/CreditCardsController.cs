@@ -4,6 +4,7 @@ using Main.Data;
 using Main.Models;
 using UtilityLibrary;
 using Main.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Main.Controllers
 {
@@ -33,7 +34,7 @@ namespace Main.Controllers
             return await _contextBet.CreditCards.ToListAsync();
         }
 
-        [BasicAuthorization]
+        [Authorize(Policy = "Customer")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CreditCard>>> GetCreditCardsByCustomer()
         {

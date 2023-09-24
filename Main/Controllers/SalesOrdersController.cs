@@ -6,6 +6,8 @@ using Main.Structures;
 using Main.Authentication;
 using UtilityLibrary;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace Main.Controllers
 {
@@ -17,6 +19,7 @@ namespace Main.Controllers
         private readonly BetacomioContext _contextBetacomio;
         private readonly AdventureWorksLt2019Context _contextAdventure;
         private readonly ILogger<SalesOrdersController> _logger;
+        IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: false, reloadOnChange: true).Build();
 
 
         public SalesOrdersController(BetacomioContext contextBetacomio, AdventureWorksLt2019Context contextAdventure, ILogger<SalesOrdersController> logger)
@@ -102,6 +105,7 @@ namespace Main.Controllers
             }
         }
 
+        [Authorize(Policy = "Admin")]
         [HttpGet]
         public async Task<ActionResult<ICollection<SalesOrderHeader>>> GetOrdersOrderedByDate()
         {
@@ -113,9 +117,9 @@ namespace Main.Controllers
             {
                 return NotFound();
             }
-
             return await _contextAdventure.SalesOrderHeaders
                 .Include(s => s.SalesOrderDetails)
+                .Include(s => s.Customer)
                 .OrderBy(s => s.OrderDate)
                 .ToListAsync();
         }
@@ -158,5 +162,82 @@ namespace Main.Controllers
 
         }
 
+        [Authorize(Policy ="Admin")]
+        [HttpPut("{id}")]
+        public IActionResult UpdateSalesOrder(int id, UpdateSalesOrder salesOrder)
+        {
+            if(id !=  salesOrder.SalesOrderId || 
+                salesOrder.Status < 1 ||  salesOrder.Status > 5) 
+            {
+                return BadRequest();
+            }
+            using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
+            {
+                conn.Open();
+                SqlTransaction trans = conn.BeginTransaction();
+                try
+                {
+                    using (SqlCommand command = new(@"UPDATE [SalesLT].[SalesOrderHeader]
+                    SET 
+                    [Status] = @Status
+                    WHERE [SalesOrderID] = @Id", conn))
+                    {
+                        command.Parameters.Add("@Status", SqlDbType.TinyInt).Value = salesOrder.Status;
+                        command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                        command.Transaction = trans;
+                        int res = command.ExecuteNonQuery();
+                        if(res == -1)
+                        {
+                            trans.Rollback();
+                            return BadRequest();
+                        }
+                        trans.Commit();
+                        return Ok();
+                    }
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    trans.Rollback();
+                    _logger.LogError(ex.Message, ex);
+                    throw;
+                }
+            }
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPut("{id}")]
+        public IActionResult ArchiveSalesOrder(int id)
+        {
+            using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
+            {
+                conn.Open();
+                SqlTransaction trans = conn.BeginTransaction();
+                try
+                {
+                    using (SqlCommand command = new(@"UPDATE [SalesLT].[SalesOrderHeader]
+                    SET 
+                    [Status] = 6
+                    WHERE [SalesOrderID] = @Id", conn))
+                    {
+                        command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                        command.Transaction = trans;
+                        int res = command.ExecuteNonQuery();
+                        if (res == -1)
+                        {
+                            trans.Rollback();
+                            return BadRequest();
+                        }
+                        trans.Commit();
+                        return Ok();
+                    }
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    trans.Rollback();
+                    _logger.LogError(ex.Message, ex);
+                    throw;
+                }
+            }
+        }
     }
 }

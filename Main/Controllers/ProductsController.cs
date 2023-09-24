@@ -136,6 +136,7 @@ namespace Main.Controllers
                                      p.Color,
                                      p.Size,
                                      p.Weight,
+                                     p.ModifiedDate,
                                      ThumbNailPhoto = p.ThumbNailPhoto == null ? null : Convert.ToBase64String(p.ThumbNailPhoto),
                                      p.ThumbnailPhotoFileName,
                                      p.ListPrice,
@@ -218,10 +219,15 @@ namespace Main.Controllers
 
 
         }
-
-        [HttpPut]
-        public ActionResult PatchProduct(ProductForPatch product)
+        [Authorize(Policy ="Admin")]
+        [HttpPut("{id}")]
+        public ActionResult PatchProduct(int id, UpdateProduct product)
         {
+            if(id != product.ProductId ||
+                string.IsNullOrEmpty(product.Name))
+            {
+                return BadRequest();
+            }
             try
             {
                 using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
@@ -230,14 +236,14 @@ namespace Main.Controllers
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.Parameters.Add("@ProductId", SqlDbType.Int).Value=product.ProductId;
-                        command.Parameters.Add("@CategoryId", SqlDbType.Int).Value=product.CategoryId;
-                        command.Parameters.Add("@NameProduct", SqlDbType.NVarChar).Value=product.NameProduct;
-                        command.Parameters.Add("@Price", SqlDbType.Money).Value=product.Price;
+                        command.Parameters.Add("@CategoryId", SqlDbType.Int).Value=product.Category;
+                        command.Parameters.Add("@NameProduct", SqlDbType.NVarChar).Value=product.Name;
+                        command.Parameters.Add("@Price", SqlDbType.Money).Value=product.ListPrice;
                         command.Parameters.Add("@Size", SqlDbType.NVarChar).Value=product.Size;
-                        command.Parameters.Add("@Weight", SqlDbType.Decimal).Value=product.Weight;
+                        command.Parameters.Add("@Weight", SqlDbType.Decimal).Value=product.Weight > 0 ? product.Weight : DBNull.Value;
                         command.Parameters.Add("@Quantity", SqlDbType.Int).Value=product.Quantity;
-                        command.Parameters.Add("@Photo", SqlDbType.VarBinary).Value= string.IsNullOrEmpty(product.Photo)? DBNull.Value:  Convert.FromBase64String(product.Photo);
-                        command.Parameters.Add("@PhotoName", SqlDbType.NVarChar).Value=product.PhotoName;
+                        command.Parameters.Add("@Photo", SqlDbType.VarBinary).Value= string.IsNullOrEmpty(product.ThumbNailPhoto)? DBNull.Value:  Convert.FromBase64String(product.ThumbNailPhoto);
+                        command.Parameters.Add("@PhotoName", SqlDbType.NVarChar).Value=product.ThumbnailPhotoFileName;
                         command.Parameters.Add("@Description", SqlDbType.NVarChar).Value=product.Description;
                         conn.Open();
                         int x=command.ExecuteNonQuery();
@@ -258,33 +264,50 @@ namespace Main.Controllers
 
         [Authorize(Policy = "Admin")]
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduct(int id, Product product)
+        public async Task<IActionResult> PutProduct(int id, UpdateProduct product)
         {
-            if (id != product.ProductId)
+            if (id != product.ProductId || 
+                string.IsNullOrEmpty(product.Name))
             {
                 return BadRequest();
             }
 
-            _Adventure.Entry(product).State = EntityState.Modified;
-
-            try
+            using (SqlConnection conn = new SqlConnection(config.GetConnectionString("AdventureWorksLt2019")))
             {
-                await _Adventure.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message, ex);
-                if (!ProductExists(id))
+                conn.Open();
+                SqlTransaction trans = conn.BeginTransaction();
+                try
                 {
-                    return NotFound();
+                    using (SqlCommand command = new("sp_UpdateProductInfo", conn))
+                    {
+                        command.Parameters.Add("@ProductId", SqlDbType.Int).Value = product.ProductId;
+                        command.Parameters.Add("@CategoryId", SqlDbType.Int).Value = product.Category;
+                        command.Parameters.Add("@Description", SqlDbType.Int).Value = string.IsNullOrEmpty(product.Description) ? product.Description : DBNull.Value;
+                        command.Parameters.Add("@NameProduct", SqlDbType.Int).Value = product.Name;
+                        command.Parameters.Add("@Price", SqlDbType.Int).Value = product.ListPrice;
+                        command.Parameters.Add("@Size", SqlDbType.Int).Value = string.IsNullOrEmpty(product.Size) ? product.Size : DBNull.Value;
+                        command.Parameters.Add("@Weight", SqlDbType.Int).Value = product.Weight > 0 ? product.Weight : DBNull.Value;
+                        command.Parameters.Add("@Quantity", SqlDbType.Int).Value = product.Quantity;
+                        command.Parameters.Add("@Photo", SqlDbType.Int).Value = Convert.FromBase64String(product.ThumbNailPhoto);
+                        command.Parameters.Add("@PhotoName", SqlDbType.Int).Value = product.ThumbnailPhotoFileName;
+                        command.Transaction = trans;
+                        int res = command.ExecuteNonQuery();
+                        if (res == -1)
+                        {
+                            trans.Rollback();
+                            return BadRequest();
+                        }
+                        trans.Commit();
+                        return Ok();
+                    }
                 }
-                else
+                catch (DbUpdateConcurrencyException ex)
                 {
+                    trans.Rollback();
+                    _logger.LogError(ex.Message, ex);
                     throw;
                 }
             }
-
-            return NoContent();
         }
 
         //[Authorize(Policy = "Admin")]
